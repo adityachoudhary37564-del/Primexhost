@@ -16,8 +16,12 @@ import threading
 import atexit
 import requests
 
+# --- Flask keep-alive (Render ke liye zaroori) ---
+from flask import Flask
+from threading import Thread
+
 # ============================================================
-# CONFIG (already filled in)
+# CONFIG
 # ============================================================
 TOKEN = '8892615863:AAHURJOttavY-t6a5mRWpowSmXEJHhY60j4'
 OWNER_ID = 8630401564
@@ -43,6 +47,30 @@ bot = telebot.TeleBot(TOKEN)
 
 # user_id -> {'proc','log','file','type','folder'}
 running = {}
+
+# ============================================================
+# FLASK KEEP-ALIVE (Render port binding fix)
+# ============================================================
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Bot is running"
+
+@app.route('/health')
+def health():
+    return "OK", 200
+
+def run_flask():
+    port = int(os.environ.get("PORT", 10000))
+    # Render needs host 0.0.0.0 and the PORT env var
+    app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
+
+def keep_alive():
+    t = Thread(target=run_flask)
+    t.daemon = True
+    t.start()
+    logger.info(f"✅ Flask keep-alive started on port {os.environ.get('PORT', 10000)}")
 
 # ============================================================
 # STDLIB + PIP NAME MAP (for auto-installer)
@@ -160,7 +188,6 @@ def check_and_fix_deps(file_path, file_type, folder, message):
             if proc.returncode == 0:
                 return True
 
-            # Python missing module
             if file_type == 'py':
                 m = re.search(r"ModuleNotFoundError: No module named '([^']+)'", err or '')
                 if m:
@@ -541,7 +568,20 @@ if __name__ == '__main__':
     print(f"🤖 Bot starting...")
     print(f"👤 Owner: {OWNER_ID} ({OWNER_USERNAME})")
     print(f"📁 Uploads: {UPLOAD_DIR}")
+    print(f"🌐 PORT: {os.environ.get('PORT', 10000)}")
     print("=" * 50)
+
+    # 1. Flask keep-alive start karo (Render port binding)
+    keep_alive()
+
+    # 2. Webhook delete karo (warna polling 409 conflict degi)
+    try:
+        bot.delete_webhook(drop_pending_updates=True)
+        print("✅ Webhook cleared. Polling ready.")
+    except Exception as e:
+        print(f"⚠️ Webhook delete failed: {e}")
+
+    # 3. Telegram polling start karo
     while True:
         try:
             bot.infinity_polling(timeout=60, long_polling_timeout=30)
