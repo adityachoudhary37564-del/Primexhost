@@ -19,7 +19,7 @@ import requests
 # ============================================================
 # CONFIG (already filled in)
 # ============================================================
-TOKEN = '8892615863:AAGzxMilaad6Hg8-eyOkAAZgxccRie6PJDY'
+TOKEN = '8892615863:AAHURJOttavY-t6a5mRWpowSmXEJHhY60j4'
 OWNER_ID = 8630401564
 OWNER_USERNAME = '@KievalryPrime'
 
